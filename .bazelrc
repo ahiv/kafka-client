@@ -1,0 +1,7 @@
+build --cxxopt='-std=c++17' --cxxopt='/std:c++17' --compiler=clang-cl --cxxopt='-Wno-narrowing'
+build --genrule_strategy=standalone
+build --host_force_python=PY2
+build --ignore_unsupported_sandboxing
+build --spawn_strategy=standalone
+
+test --test_output=all --nocache_test_results --runs_per_test=5
