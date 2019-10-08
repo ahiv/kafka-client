@@ -14,29 +14,31 @@ const std::size_t PlaintextLength = 12;
 enum class ConnectionType { Plaintext };
 
 struct ConnectionConfig {
-  Address address;
+  Address* address = nullptr;
   ConnectionType connectionType;
 
-  static ConnectionConfig parseFromConnectionURL(const std::string& url) {
+  static std::shared_ptr<ConnectionConfig> parseFromConnectionURL(
+      const std::string& url) {
     std::string hostnameAndPort = url.substr(PlaintextLength);
     std::string::size_type positionOfColon = hostnameAndPort.find(":");
+    ConnectionConfig connectionConfig = ConnectionConfig {
+      .connectionType = ConnectionType::Plaintext
+    };
 
     if (positionOfColon == std::string::npos) {
-      return ConnectionConfig{.address = Address(hostnameAndPort, "9092"),
-                              .connectionType = ConnectionType::Plaintext};
+      connectionConfig.address = new Address(hostnameAndPort, "9092");
     } else if (positionOfColon == hostnameAndPort.size() - 1) {
-      return ConnectionConfig{
-          .address = Address(
-              hostnameAndPort.substr(0, hostnameAndPort.size() - 1), "9092"),
-          .connectionType = ConnectionType::Plaintext};
+      connectionConfig.address = new Address(
+          hostnameAndPort.substr(0, hostnameAndPort.size() - 1), "9092");
     } else {
       std::string hostname = hostnameAndPort.substr(0, positionOfColon);
       std::string port =
           hostnameAndPort.substr(positionOfColon + 1, hostnameAndPort.size());
 
-      return ConnectionConfig{.address = Address(hostname, port),
-                              .connectionType = ConnectionType::Plaintext};
+      connectionConfig.address = new Address(hostname, port);
     }
+
+    return std::make_shared<ConnectionConfig>(connectionConfig);
   }
 };
 }  // namespace ahiv::kafka

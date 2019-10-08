@@ -29,14 +29,14 @@ class Address : public uvw::Emitter<Address> {
 
     request->on<uvw::AddrInfoEvent>(
         [this](const uvw::AddrInfoEvent& addrInfoEvent, auto&) {
-          this->resolvedAddress = *addrInfoEvent.data->ai_addr;
+          this->resolvedAddress = addrInfoEvent.data->ai_addr;
           this->publish(ResolvedEvent{});
         });
 
     request->addrInfo(this->hostname, this->port);
   }
 
-  sockaddr resolvedAddress;
+  sockaddr* resolvedAddress;
   const std::string hostname;
   const std::string port;
 };

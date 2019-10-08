@@ -35,28 +35,25 @@ class Connection : public uvw::Emitter<Connection> {
           .error = Error::NoValidBootstrapServerGiven});
     }
 
-    printf("Connecting to brokers requested\n");
     this->connectToServers(bootstrapServers);
   }
 
  protected:
   // Init a new connection with the given loop. All actions are processed via
   // the given loop
-  Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {
-
-  }
+  Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {}
 
  private:
   // connectToServerViaTCP takes in the resolved connection config and connects
   // a TCP socket to the resolved IP:Port
-  void connectToServerViaTCP(ConnectionConfig& connectionConfig) {
+  void connectToServerViaTCP(const std::shared_ptr<ConnectionConfig>& connectionConfig) {
     std::shared_ptr<uvw::TCPHandle> tcpSocket =
         this->loop->resource<uvw::TCPHandle>();
+    tcpHandles.emplace_back(tcpSocket);
 
     tcpSocket->once<uvw::WriteEvent>(
         [](const uvw::WriteEvent&, uvw::TCPHandle& handle) {
-            printf("Wrote data\n");
-            handle.close();
+          handle.close();
         });
 
     tcpSocket->once<uvw::ConnectEvent>(
@@ -64,25 +61,23 @@ class Connection : public uvw::Emitter<Connection> {
           printf("Connected to broker\n");
         });
 
-    printf("Trying to connect\n");
-    tcpSocket->connect(connectionConfig.address.resolvedAddress);
+    tcpSocket->connect(*connectionConfig->address->resolvedAddress);
   }
 
   // connectToServer parses the server address and connects to the given IP or
   // hostname via TCP
   void connectToServer(const std::string& server) {
-    ConnectionConfig config = ConnectionConfig::parseFromConnectionURL(server);
-    config.address.on<ahiv::kafka::ErrorEvent>(
+    auto config = ConnectionConfig::parseFromConnectionURL(server);
+    config->address->on<ahiv::kafka::ErrorEvent>(
         [this](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
           this->publish(errorEvent);
         });
-    config.address.on<ahiv::kafka::ResolvedEvent>(
-        [this, &config](const ahiv::kafka::ResolvedEvent& resolvedEvent,
+    config->address->on<ahiv::kafka::ResolvedEvent>(
+        [this, config](const ahiv::kafka::ResolvedEvent& resolvedEvent,
                         auto& emitter) {
-          printf("Resolved IP");
           this->connectToServerViaTCP(config);
         });
-    config.address.resolve(this->loop);
+    config->address->resolve(this->loop);
   }
 
   // connectToServers looks for all servers in the set and connects to valid
@@ -90,7 +85,6 @@ class Connection : public uvw::Emitter<Connection> {
   void connectToServers(const std::set<std::string>& servers) {
     for (const auto& server : servers) {
       if (this->canBeUsedForConnecting(server)) {
-        printf("Connecting to server %s will be started\n", server.c_str());
         this->connectToServer(server);
       }
     }
@@ -115,6 +109,7 @@ class Connection : public uvw::Emitter<Connection> {
     return false;
   }
 
+  std::vector<std::shared_ptr<uvw::TCPHandle>> tcpHandles;
   std::shared_ptr<uvw::Loop>& loop;
 };
 }  // namespace ahiv::kafka
