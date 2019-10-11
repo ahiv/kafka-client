@@ -38,6 +38,21 @@ class Connection : public uvw::Emitter<Connection> {
     this->connectToServers(bootstrapServers);
   }
 
+  // On registers a listener for the given event via the E template type. This
+  // listener gets called every time the event E is published on this instance
+  template <typename E>
+  void On(std::function<void(E&, Connection&)> listener) {
+    this->on<E>(listener);
+  }
+
+  // Once registers a listener for the given event via the E template type. This
+  // listener gets called on the first time the event E is published on this
+  // instance
+  template <typename E>
+  void Once(std::function<void(E&, Connection&)> listener) {
+    this->once<E>(listener);
+  }
+
  protected:
   // Init a new connection with the given loop. All actions are processed via
   // the given loop
@@ -46,15 +61,30 @@ class Connection : public uvw::Emitter<Connection> {
  private:
   // connectToServerViaTCP takes in the resolved connection config and connects
   // a TCP socket to the resolved IP:Port
-  void connectToServerViaTCP(const std::shared_ptr<ConnectionConfig>& connectionConfig) {
+  void connectToServerViaTCP(
+      const std::shared_ptr<ConnectionConfig>& connectionConfig) {
     std::shared_ptr<uvw::TCPHandle> tcpSocket =
         this->loop->resource<uvw::TCPHandle>();
     tcpHandles.emplace_back(tcpSocket);
 
-    tcpSocket->once<uvw::WriteEvent>(
-        [](const uvw::WriteEvent&, uvw::TCPHandle& handle) {
-          handle.close();
+    tcpSocket->on<uvw::ErrorEvent>(
+        [this](const uvw::ErrorEvent& errorEvent, auto&) {
+          const char* errorName = errorEvent.name();
+          if (errorName == "ECONNREFUSED") {
+            this->publish(
+                ErrorEvent{.reason = std::string("Could not connect to IP ")
+                                         .append(errorEvent.what()),
+                           .error = Error::TCPConnectionRefused});
+          } else {
+            this->publish(
+                ErrorEvent{.reason = std::string("Got unknown TCP error: ")
+                                         .append(errorEvent.what()),
+                           .error = Error::UnknownTCPError});
+          }
         });
+
+    tcpSocket->once<uvw::WriteEvent>(
+        [](const uvw::WriteEvent&, uvw::TCPHandle& handle) { handle.close(); });
 
     tcpSocket->once<uvw::ConnectEvent>(
         [](const uvw::ConnectEvent&, uvw::TCPHandle& handle) {
@@ -67,17 +97,15 @@ class Connection : public uvw::Emitter<Connection> {
   // connectToServer parses the server address and connects to the given IP or
   // hostname via TCP
   void connectToServer(const std::string& server) {
-    auto config = ConnectionConfig::parseFromConnectionURL(server);
+    auto config = ConnectionConfig::ParseFromConnectionURL(server);
     config->address->on<ahiv::kafka::ErrorEvent>(
         [this](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
           this->publish(errorEvent);
         });
     config->address->on<ahiv::kafka::ResolvedEvent>(
         [this, config](const ahiv::kafka::ResolvedEvent& resolvedEvent,
-                        auto& emitter) {
-          this->connectToServerViaTCP(config);
-        });
-    config->address->resolve(this->loop);
+                       auto& emitter) { this->connectToServerViaTCP(config); });
+    config->address->Resolve(this->loop);
   }
 
   // connectToServers looks for all servers in the set and connects to valid

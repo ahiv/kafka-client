@@ -14,15 +14,16 @@ const std::size_t PlaintextLength = 12;
 enum class ConnectionType { Plaintext };
 
 struct ConnectionConfig {
-  Address* address = nullptr;
+  Address* address;
   ConnectionType connectionType;
 
-  static std::shared_ptr<ConnectionConfig> parseFromConnectionURL(
+  static std::shared_ptr<ConnectionConfig> ParseFromConnectionURL(
       const std::string& url) {
     std::string hostnameAndPort = url.substr(PlaintextLength);
     std::string::size_type positionOfColon = hostnameAndPort.find(":");
-    ConnectionConfig connectionConfig = ConnectionConfig {
-      .connectionType = ConnectionType::Plaintext
+    struct ConnectionConfig connectionConfig = {
+      address : nullptr,
+      connectionType : ConnectionType::Plaintext,
     };
 
     if (positionOfColon == std::string::npos) {

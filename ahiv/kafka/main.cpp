@@ -1,17 +1,19 @@
-#include "connectionconfig.h"
-#include "consumer.h"
-#include "loguru.hpp"
-#include "uvw.hpp"
+#include "ahiv/kafka/protocol/packet.h"
+#include <iostream>
 
 int main() {
-  auto loop = uvw::Loop::getDefault();
+  std::vector<std::string> topics =
+      std::vector<std::string>({"test", "test1"});
 
-  ahiv::kafka::Consumer consumer(loop);
-  consumer.on<ahiv::kafka::ErrorEvent>(
-      [](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
-        LOG_F(ERROR, "Got error: %s", errorEvent.reason.c_str());
-      });
-  consumer.Bootstrap({"plaintext://localhost:9092"});
+  ahiv::kafka::protocol::MetadataRequestPacket requestPacket =
+      ahiv::kafka::protocol::MetadataRequestPacket(topics, false, false, false);
 
-  loop->run();
+  ahiv::kafka::protocol::Buffer buffer;
+  buffer.EnsureAllocated(requestPacket.Size());
+  requestPacket.Write(&buffer);
+
+  std::cout << buffer.Size() << std::endl << std::flush;
+  for (int j = 0; j < buffer.Size(); j++) printf("%02X ", buffer.Data()[j]);
+
+  std::cout << std::flush;
 }

@@ -1,6 +1,15 @@
 # Tooling for downloading from http and git
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+# === benchmark
+http_archive(
+    name = "com_google_benchmark",
+    urls = [
+        "https://github.com/google/benchmark/archive/v1.5.0.zip",
+    ],
+    strip_prefix = "benchmark-1.5.0",
+)
+
 # === libuv
 http_archive(
     name = "com_github_libuv_libuv",

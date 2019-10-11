@@ -7,40 +7,40 @@
 
 // Test if the parser correctly parses valid plaintext urls
 TEST(ConnectionConfigTest, ParseSuccessWithCorrectURL) {
-  auto connectionConfig = ahiv::kafka::ConnectionConfig::parseFromConnectionURL(
-      "plaintext://localhost:9093");
-  EXPECT_EQ(connectionConfig.connectionType,
+  auto connectionConfig = ahiv::kafka::ConnectionConfig::ParseFromConnectionURL(
+          "plaintext://localhost:9093");
+  EXPECT_EQ(connectionConfig->connectionType,
             ahiv::kafka::ConnectionType::Plaintext);
-  EXPECT_EQ(connectionConfig.address.hostname, "localhost");
-  EXPECT_EQ(connectionConfig.address.port, "9093");
+  EXPECT_EQ(connectionConfig->address->hostname, "localhost");
+  EXPECT_EQ(connectionConfig->address->port, "9093");
 }
 
 TEST(ConnectionConfigTest, ParseSuccessWithMissingPortURL) {
-  auto connectionConfig = ahiv::kafka::ConnectionConfig::parseFromConnectionURL(
-      "plaintext://localhost:");
-  EXPECT_EQ(connectionConfig.connectionType,
+  auto connectionConfig = ahiv::kafka::ConnectionConfig::ParseFromConnectionURL(
+          "plaintext://localhost:");
+  EXPECT_EQ(connectionConfig->connectionType,
             ahiv::kafka::ConnectionType::Plaintext);
-  EXPECT_EQ(connectionConfig.address.hostname, "localhost");
-  EXPECT_EQ(connectionConfig.address.port, "9092");
+  EXPECT_EQ(connectionConfig->address->hostname, "localhost");
+  EXPECT_EQ(connectionConfig->address->port, "9092");
 }
 
 TEST(ConnectionConfigTest, ParseSuccessWithDefaultPortURL) {
-  auto connectionConfig = ahiv::kafka::ConnectionConfig::parseFromConnectionURL(
-      "plaintext://localhost");
-  EXPECT_EQ(connectionConfig.connectionType,
+  auto connectionConfig = ahiv::kafka::ConnectionConfig::ParseFromConnectionURL(
+          "plaintext://localhost");
+  EXPECT_EQ(connectionConfig->connectionType,
             ahiv::kafka::ConnectionType::Plaintext);
-  EXPECT_EQ(connectionConfig.address.hostname, "localhost");
-  EXPECT_EQ(connectionConfig.address.port, "9092");
+  EXPECT_EQ(connectionConfig->address->hostname, "localhost");
+  EXPECT_EQ(connectionConfig->address->port, "9092");
 }
 
 TEST(ConnectionConfigTest, ResolveHostWithSuccess) {
     auto loop = uvw::Loop::getDefault();
-    auto connectionConfig = ahiv::kafka::ConnectionConfig::parseFromConnectionURL(
+    auto connectionConfig = ahiv::kafka::ConnectionConfig::ParseFromConnectionURL(
             "plaintext://localhost");
-    EXPECT_EQ(connectionConfig.connectionType,
+    EXPECT_EQ(connectionConfig->connectionType,
     ahiv::kafka::ConnectionType::Plaintext);
-    EXPECT_EQ(connectionConfig.address.hostname, "localhost");
-    EXPECT_EQ(connectionConfig.address.port, "9092");
+    EXPECT_EQ(connectionConfig->address->hostname, "localhost");
+    EXPECT_EQ(connectionConfig->address->port, "9092");
 
-    connectionConfig.address.resolve(loop);
+    connectionConfig->address->Resolve(loop);
 }

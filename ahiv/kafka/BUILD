@@ -1,6 +1,6 @@
 cc_library(
     name = "kafka-library-client",
-    srcs = glob(["*.h"]),
+    srcs = glob(["**/*.h"]),
     deps = [
         "@com_skypjack_uvw//:uvw"
     ],

@@ -13,7 +13,7 @@ TEST(ConnectionTest, EmitsErrorWhenNoValidBootstrapIsGiven) {
   bool errorThrown = false;
 
   ahiv::kafka::Consumer consumer(loop);
-  consumer.on<ahiv::kafka::ErrorEvent>(
+  consumer.On<ahiv::kafka::ErrorEvent>(
       [&errorThrown](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
         if (errorEvent.error ==
             ahiv::kafka::Error::NoValidBootstrapServerGiven) {
@@ -31,7 +31,7 @@ TEST(ConnectionTest, EmitsNoErrorWhenValidBootstrapIsGiven) {
   bool errorThrown = false;
 
   ahiv::kafka::Consumer consumer(loop);
-  consumer.on<ahiv::kafka::ErrorEvent>(
+  consumer.On<ahiv::kafka::ErrorEvent>(
       [&errorThrown](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
         if (errorEvent.error ==
             ahiv::kafka::Error::NoValidBootstrapServerGiven) {

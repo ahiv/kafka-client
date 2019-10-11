@@ -16,14 +16,12 @@ class Address : public uvw::Emitter<Address> {
   Address(const std::string hostname, const std::string port)
       : hostname(hostname), port(port) {}
 
-  void resolve(const std::shared_ptr<uvw::Loop>& loop) {
-    printf("Should resolve");
-
+  void Resolve(const std::shared_ptr<uvw::Loop>& loop) {
     auto request = loop->resource<uvw::GetAddrInfoReq>();
     request->on<uvw::ErrorEvent>(
         [this](const uvw::ErrorEvent& errorEvent, auto&) {
           this->publish(ErrorEvent{
-              .reason = std::string("Could not resolve IP ", errorEvent.what()),
+              .reason = std::string("Could not resolve IP").append(errorEvent.what()),
               .error = Error::DNSResolveFailed});
         });
 

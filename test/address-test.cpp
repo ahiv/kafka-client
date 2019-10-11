@@ -25,7 +25,7 @@ TEST(AddressTest, EmitsResolvedOnCorrectDomain) {
         EXPECT_FALSE(resolved);
         resolved = true;
       });
-  address.resolve(loop);
+  address.Resolve(loop);
   loop->run();
 
   EXPECT_FALSE(errorThrown);
@@ -52,7 +52,7 @@ TEST(AddressTest, EmitsErrorOnNonResolvableDomain) {
         EXPECT_FALSE(resolved);
         resolved = true;
       });
-  address.resolve(loop);
+  address.Resolve(loop);
   loop->run();
 
   EXPECT_TRUE(errorThrown);

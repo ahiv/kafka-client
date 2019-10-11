@@ -5,7 +5,12 @@
 #define AHIV_KAFKA_CLIENT_ERROR_H
 
 namespace ahiv::kafka {
-enum class Error { NoValidBootstrapServerGiven, DNSResolveFailed };
+enum class Error {
+  NoValidBootstrapServerGiven,
+  DNSResolveFailed,
+  TCPConnectionRefused,
+  UnknownTCPError
+};
 }
 
 #endif  // AHIV_KAFKA_CLIENT_ERROR_H
