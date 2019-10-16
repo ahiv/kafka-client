@@ -20,6 +20,8 @@ struct ErrorEvent {
 // ResolvedEvent is used by the Address class to notify the caller when it has
 // resolved the IP of the hostname given
 struct ResolvedEvent {};
+
+struct ConnectedEvent {};
 }  // namespace ahiv::kafka
 
 #endif  // AHIV_KAFKA_CLIENT_EVENT_H

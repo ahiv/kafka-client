@@ -8,11 +8,15 @@
 
 namespace ahiv::kafka::protocol {
 struct BasePacket {
-  std::vector<char>::iterator packetSizePosition;
+  std::size_t packetSizePosition;
   int32_t packetSize;
 
-  virtual void Write(Buffer* buffer) {
-      packetSizePosition = buffer->Write<int32_t>(0);
+  virtual void Write(Buffer& buffer) {
+      packetSizePosition = buffer.Write<int32_t>(0);
+  }
+
+  virtual void Read(Buffer& buffer) {
+      packetSize = buffer.Read<int32_t>();
   }
 
   virtual std::size_t Size() { return 4; }
@@ -22,14 +26,14 @@ struct RequestPacket : public BasePacket {
   RequestPacket(int16_t apiKey, int16_t apiVersion)
       : apiKey(apiKey), apiVersion(apiVersion) {}
 
-  void Write(Buffer* buffer) {
+  void Write(Buffer& buffer) {
     BasePacket::Write(buffer);
 
     //
-    buffer->Write<int16_t>(apiKey);
-    buffer->Write<int16_t>(apiVersion);
-    buffer->Write<int32_t>(correlationId);
-    buffer->Write<int16_t>(clientId);
+    buffer.Write<int16_t>(apiKey);
+    buffer.Write<int16_t>(apiVersion);
+    buffer.Write<int32_t>(correlationId);
+    buffer.Write<int16_t>(clientId);
   }
 
   std::size_t Size() { return BasePacket::Size() + 2 + 2 + 4 + 2; }
@@ -43,6 +47,11 @@ struct RequestPacket : public BasePacket {
 
 struct ResponsePacket : public BasePacket {
   int32_t correlationId;
+
+  void Read(Buffer& buffer) {
+      BasePacket::Read(buffer);
+      correlationId = buffer.Read<int32_t>();
+  }
 };
 
 struct MetadataRequestPacket : public RequestPacket {
@@ -56,23 +65,23 @@ struct MetadataRequestPacket : public RequestPacket {
         includeClusterAuthorizedOperations(includeClusterAuthorizedOperations),
         includeTopicAuthorizedOperations(includeTopicAuthorizedOperations) {}
 
-  void Write(Buffer* buffer) {
+  void Write(Buffer& buffer) {
     RequestPacket::Write(buffer);
 
     // Write topics
-    buffer->Write<int32_t>(topics.size());
+    buffer.Write<int32_t>(topics.size());
     for (auto& topicName : topics) {
-      buffer->WriteString(topicName);
+      buffer.WriteString(topicName);
     }
 
     // Write options
-    buffer->WriteBoolean(allowAutoTopicCreation);
-    buffer->WriteBoolean(includeClusterAuthorizedOperations);
-    buffer->WriteBoolean(includeTopicAuthorizedOperations);
+    buffer.WriteBoolean(allowAutoTopicCreation);
+    buffer.WriteBoolean(includeClusterAuthorizedOperations);
+    buffer.WriteBoolean(includeTopicAuthorizedOperations);
 
     // Write size
-    packetSize = buffer->Size() - 4;
-    buffer->Overwrite<int32_t>(packetSizePosition, packetSize);
+    packetSize = buffer.Size() - 4;
+    buffer.Overwrite<int32_t>(packetSizePosition, packetSize);
   }
 
   std::size_t Size() {
@@ -89,6 +98,16 @@ struct MetadataRequestPacket : public RequestPacket {
   bool allowAutoTopicCreation;
   bool includeClusterAuthorizedOperations;
   bool includeTopicAuthorizedOperations;
+};
+
+struct MetdadataResponsePacket : public ResponsePacket {
+    void Read(Buffer& buffer) {
+        ResponsePacket::Read(buffer);
+
+        throttledInMilliseconds = buffer.Read<int32_t>();
+    }
+
+    int32_t throttledInMilliseconds;
 };
 }  // namespace ahiv::kafka::protocol
 

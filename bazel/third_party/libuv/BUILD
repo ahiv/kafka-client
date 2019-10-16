@@ -22,8 +22,44 @@ UV_COMMON_SOURCES = [
   "src/version.c"
 ]
 
-UV_WINDOWS_SOURCES = glob(include=["src/win/*"], exclude=["src/win/dl.c"])
-UV_WINDOWS_HEADERS = ["include/uv/win.h", "include/uv/tree.h"]
+UV_WINDOWS_SOURCES = [
+    "src/win/async.c",
+    "src/win/atomicops-inl.h",
+    "src/win/core.c",
+    "src/win/detect-wakeup.c",
+
+    "src/win/error.c",
+    "src/win/fs-event.c",
+    "src/win/fs.c",
+    "src/win/getaddrinfo.c",
+    "src/win/getnameinfo.c",
+    "src/win/handle.c",
+    "src/win/handle-inl.h",
+    "src/win/internal.h",
+    "src/win/loop-watcher.c",
+    "src/win/pipe.c",
+    "src/win/poll.c",
+    "src/win/process-stdio.c",
+    "src/win/process.c",
+    "src/win/req-inl.h",
+    "src/win/signal.c",
+    "src/win/stream.c",
+    "src/win/stream-inl.h",
+    "src/win/tcp.c",
+    "src/win/thread.c",
+    "src/win/tty.c",
+    "src/win/udp.c",
+    "src/win/util.c",
+    "src/win/winapi.c",
+    "src/win/winapi.h",
+    "src/win/winsock.c",
+    "src/win/winsock.h"
+]
+
+UV_WINDOWS_HEADERS = [
+    "include/uv/win.h",
+    "include/uv/tree.h"
+]
 
 WIN_LINK_OPTS = [
     "-DEFAULTLIB:advapi32.lib",
@@ -31,8 +67,6 @@ WIN_LINK_OPTS = [
     "-DEFAULTLIB:user32.lib",
     "-DEFAULTLIB:Iphlpapi.lib",
     "-DEFAULTLIB:ws2_32.lib",
-    "-DWIN32_LEAN_AND_MEAN",
-    "-D_WIN32_WINNT=0x0600"
 ]
 
 UV_UNIX_SOURCES = [

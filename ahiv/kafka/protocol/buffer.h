@@ -15,14 +15,14 @@
 namespace ahiv::kafka::protocol {
 class Buffer {
  public:
-  std::size_t Size() { return this->internalBuffer.size(); }
+  std::size_t Size() { return this->writePositionInBuffer; }
 
   template <typename T>
-  std::vector<char>::iterator Write(T value) {
+  std::size_t Write(T value) {
     std::size_t length = sizeof(T);
     T correctedValue = this->correctEndian<T>(value);
     char* byteRepresentation = (char*)&correctedValue;
-    return this->writeData(byteRepresentation, length);
+    return this->WriteData(byteRepresentation, length);
   }
 
   template <typename T>
@@ -40,18 +40,21 @@ class Buffer {
     return value;
   }
 
-  template <typename T>
-  void Overwrite(std::vector<char>::iterator pos, T value) {
+  template <typename T, size_t size = sizeof(T)>
+  void Overwrite(std::size_t pos, T value) {
     T correctedValue = this->correctEndian<T>(value);
     char* byteRepresentation = (char*)&correctedValue;
-    std::copy(byteRepresentation, std::next(byteRepresentation, sizeof(T)),
-              pos);
+
+    for (std::size_t positionInData = 0; positionInData < size;
+         positionInData++) {
+      this->internalBuffer[pos + positionInData] = byteRepresentation[positionInData];
+    }
   }
 
-  std::vector<char>::iterator WriteBoolean(bool value) {
+  std::size_t WriteBoolean(bool value) {
     char data[1];
     data[0] = value ? 1 : 0;
-    return this->writeData(data, 1);
+    return this->WriteData(data, 1);
   }
 
   bool ReadBoolean() {
@@ -59,10 +62,9 @@ class Buffer {
                                                                    : false;
   }
 
-  std::vector<char>::iterator WriteString(const std::string& value) {
-    std::vector<char>::iterator startPosition =
-        this->Write<int16_t>(value.size());
-    this->writeData(value.c_str(), value.size());
+  std::size_t WriteString(const std::string& value) {
+    std::size_t startPosition = this->Write<int16_t>(value.size());
+    this->WriteData(value.c_str(), value.size());
     return startPosition;
   }
 
@@ -79,30 +81,25 @@ class Buffer {
     return readStringInto;
   }
 
-  char* Data() { return this->internalBuffer.data(); }
+  std::unique_ptr<char[]> Data() { return std::move(this->internalBuffer); }
 
   void EnsureAllocated(std::size_t size) {
-    this->internalBuffer.reserve(size);
-    this->writePositionInBuffer = this->internalBuffer.begin();
-  }
-
-  std::size_t Index(std::vector<char>::iterator& pos) {
-    return std::distance(this->internalBuffer.begin(), pos);
+    this->internalBuffer = std::unique_ptr<char[]>(new char[size]);
   }
 
   void ResetReadPosition() { this->readPositionInBuffer = 0; }
 
- private:
-  std::vector<char>::iterator writeData(const char* data, std::size_t length) {
-    std::vector<char>::iterator iterator = this->writePositionInBuffer;
+  std::size_t WriteData(const char* data, std::size_t length) {
+    std::size_t currentWritePosition = this->writePositionInBuffer;
     for (std::size_t positionInData = 0; positionInData < length;
          positionInData++) {
-      this->internalBuffer.emplace_back(data[positionInData]);
+      this->internalBuffer[this->writePositionInBuffer++] =
+          data[positionInData];
     }
-    std::advance(this->writePositionInBuffer, length);
-    return iterator;
+    return currentWritePosition;
   }
 
+ private:
   template <typename T, size_t size = sizeof(T)>
   constexpr T correctEndian(T value) {
     switch (size) {
@@ -138,16 +135,15 @@ class Buffer {
     do {
       if (current >= maxAmountOfBytes) return;
 
-      this->internalBuffer.emplace(
-          this->writePositionInBuffer++,
-          (number & 0x7f) | (number > 0x7f ? 0x80 : 0));
+      this->internalBuffer[this->writePositionInBuffer++] =
+          (number & 0x7f) | (number > 0x7f ? 0x80 : 0);
       current++;
       number >>= 7;
     } while (number);
   }
 
-  std::vector<char> internalBuffer;
-  std::vector<char>::iterator writePositionInBuffer;
+  std::unique_ptr<char[]> internalBuffer;
+  std::size_t writePositionInBuffer = 0;
   std::size_t readPositionInBuffer = 0;
 };
 }  // namespace ahiv::kafka::protocol

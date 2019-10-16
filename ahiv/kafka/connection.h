@@ -4,7 +4,9 @@
 #ifndef AHIV_KAFKA_CLIENT_CONNECTION_H
 #define AHIV_KAFKA_CLIENT_CONNECTION_H
 
+#include <chrono>
 #include <functional>
+#include <iostream>
 #include <optional>
 #include <set>
 #include <string>
@@ -12,6 +14,7 @@
 #include "ahiv/kafka/connectionconfig.h"
 #include "ahiv/kafka/error.h"
 #include "ahiv/kafka/event.h"
+#include "ahiv/kafka/internal/tcpconnection.h"
 #include "uvw.hpp"
 
 namespace ahiv::kafka {
@@ -29,6 +32,13 @@ class Connection : public uvw::Emitter<Connection> {
   // callback will be fired once. You can use the connection for further
   // configuration after that callback has been fired.
   void Bootstrap(const std::set<std::string>& bootstrapServers) {
+    this->startBootstrapping = std::chrono::high_resolution_clock::now();
+    this->Once<ConnectedEvent>([this](const ConnectedEvent& event, auto&) {
+      std::chrono::duration<double> elapsed =
+          std::chrono::high_resolution_clock::now() - this->startBootstrapping;
+      std::cout << "Bootstrapping took " << elapsed.count() << " s" << std::endl;
+    });
+
     if (!this->canAtLeasOneBeUsedForConnecting(bootstrapServers)) {
       this->publish(ErrorEvent{
           .reason = "No valid server for bootstrapping has been found",
@@ -58,40 +68,23 @@ class Connection : public uvw::Emitter<Connection> {
   // the given loop
   Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {}
 
+  // Send the given buffer to the first connection, if there is one
+  void SendToFirstConnection(protocol::Buffer& buffer, const std::function<void(protocol::Buffer&)> responseCallback) {
+    if (this->tcpHandles.size() > 0) {
+      this->tcpHandles[0]->Write(buffer, responseCallback);
+    }
+  }
+
  private:
   // connectToServerViaTCP takes in the resolved connection config and connects
   // a TCP socket to the resolved IP:Port
   void connectToServerViaTCP(
       const std::shared_ptr<ConnectionConfig>& connectionConfig) {
-    std::shared_ptr<uvw::TCPHandle> tcpSocket =
-        this->loop->resource<uvw::TCPHandle>();
-    tcpHandles.emplace_back(tcpSocket);
-
-    tcpSocket->on<uvw::ErrorEvent>(
-        [this](const uvw::ErrorEvent& errorEvent, auto&) {
-          const char* errorName = errorEvent.name();
-          if (errorName == "ECONNREFUSED") {
-            this->publish(
-                ErrorEvent{.reason = std::string("Could not connect to IP ")
-                                         .append(errorEvent.what()),
-                           .error = Error::TCPConnectionRefused});
-          } else {
-            this->publish(
-                ErrorEvent{.reason = std::string("Got unknown TCP error: ")
-                                         .append(errorEvent.what()),
-                           .error = Error::UnknownTCPError});
-          }
-        });
-
-    tcpSocket->once<uvw::WriteEvent>(
-        [](const uvw::WriteEvent&, uvw::TCPHandle& handle) { handle.close(); });
-
-    tcpSocket->once<uvw::ConnectEvent>(
-        [](const uvw::ConnectEvent&, uvw::TCPHandle& handle) {
-          printf("Connected to broker\n");
-        });
-
-    tcpSocket->connect(*connectionConfig->address->resolvedAddress);
+    auto tcpConnection =
+        std::make_shared<internal::TCPConnection>(this->loop, connectionConfig);
+    tcpConnection->On<ConnectedEvent>(
+        [this](const ConnectedEvent& event, auto&) { this->publish(event); });
+    tcpHandles.emplace_back(tcpConnection);
   }
 
   // connectToServer parses the server address and connects to the given IP or
@@ -137,8 +130,11 @@ class Connection : public uvw::Emitter<Connection> {
     return false;
   }
 
-  std::vector<std::shared_ptr<uvw::TCPHandle>> tcpHandles;
+  std::vector<std::shared_ptr<internal::TCPConnection>> tcpHandles;
   std::shared_ptr<uvw::Loop>& loop;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock>
+      startBootstrapping;
 };
 }  // namespace ahiv::kafka
 

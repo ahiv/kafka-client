@@ -18,7 +18,7 @@ static void MetadataWriter(benchmark::State& state) {
     }
 }
 // Register the function as a benchmark
-BENCHMARK(MetadataWriter);
+BENCHMARK(MetadataWriter)->RangeMultiplier(2)->Range(1<<18, 1<<30)->Threads(2);
 
 // Run the benchmark
 BENCHMARK_MAIN();

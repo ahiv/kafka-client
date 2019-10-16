@@ -1,19 +1,19 @@
-#include "ahiv/kafka/protocol/packet.h"
+#define WIN32_LEAN_AND_MEAN
+
 #include <iostream>
+#include "ahiv/kafka/consumer.h"
 
 int main() {
-  std::vector<std::string> topics =
-      std::vector<std::string>({"test", "test1"});
+  auto loop = uvw::Loop::getDefault();
 
-  ahiv::kafka::protocol::MetadataRequestPacket requestPacket =
-      ahiv::kafka::protocol::MetadataRequestPacket(topics, false, false, false);
+  ahiv::kafka::Consumer consumer(loop);
+  consumer.On<ahiv::kafka::ErrorEvent>(
+      [](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
+        std::cout << errorEvent.reason << std::endl << std::flush;
+      });
+  consumer.ConsumeFromTopic("test");
+  consumer.Bootstrap({"plaintext://localhost:9092"});
 
-  ahiv::kafka::protocol::Buffer buffer;
-  buffer.EnsureAllocated(requestPacket.Size());
-  requestPacket.Write(&buffer);
-
-  std::cout << buffer.Size() << std::endl << std::flush;
-  for (int j = 0; j < buffer.Size(); j++) printf("%02X ", buffer.Data()[j]);
-
+  loop->run();
   std::cout << std::flush;
 }
