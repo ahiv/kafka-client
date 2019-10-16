@@ -6,6 +6,7 @@
 
 #include "ahiv/kafka/connection.h"
 #include "ahiv/kafka/internal/topic.h"
+#include "ahiv/kafka/protocol/packet/metadata.h"
 #include "uvw.hpp"
 
 namespace ahiv::kafka {
@@ -34,8 +35,8 @@ class Consumer : public Connection {
   void requestMetadataForTopics() {
     this->startTopicMetadata = std::chrono::high_resolution_clock::now();
 
-    ahiv::kafka::protocol::MetadataRequestPacket requestPacket =
-        ahiv::kafka::protocol::MetadataRequestPacket(
+    ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
+        ahiv::kafka::protocol::packet::MetadataRequestPacket(
             this->wantedTopics, this->autoCreate, false, false);
 
     ahiv::kafka::protocol::Buffer buffer;
@@ -44,6 +45,13 @@ class Consumer : public Connection {
 
     this->SendToFirstConnection(buffer, [this](
                                             protocol::Buffer& responseBuffer) {
+        ahiv::kafka::protocol::packet::MetadataResponsePacket metadataResponsePacket;
+        metadataResponsePacket.Read(responseBuffer);
+
+        for (auto broker : metadataResponsePacket.brokers) {
+            this->consumeFromMetadata(broker);
+        }
+
       std::chrono::duration<double> elapsed =
           std::chrono::high_resolution_clock::now() - this->startTopicMetadata;
       std::cout << "Getting topic meta took " << elapsed.count() << " s"

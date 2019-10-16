@@ -75,6 +75,12 @@ class Connection : public uvw::Emitter<Connection> {
     }
   }
 
+  void consumeFromMetadata(const protocol::packet::BrokerNodeInformation brokerNodeInformation) {
+      for (auto tcpConnection : this->tcpHandles) {
+          tcpConnection->ConsumeFromMetadata(brokerNodeInformation);
+      }
+  }
+
  private:
   // connectToServerViaTCP takes in the resolved connection config and connects
   // a TCP socket to the resolved IP:Port

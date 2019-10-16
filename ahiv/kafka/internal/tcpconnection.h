@@ -8,8 +8,8 @@
 #include <queue>
 
 #include "ahiv/kafka/connectionconfig.h"
+#include "ahiv/kafka/protocol/packet/metadata.h"
 #include "ahiv/kafka/protocol/buffer.h"
-#include "ahiv/kafka/protocol/packet.h"
 #include "ahiv/kafka/util.h"
 #include "uvw.hpp"
 
@@ -24,6 +24,7 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   TCPConnection(const std::shared_ptr<uvw::Loop>& loop,
                 const std::shared_ptr<ConnectionConfig>& connectionConfig) {
     this->handle = loop->resource<uvw::TCPHandle>();
+    this->connectionConfig = connectionConfig;
 
     this->handle->on<uvw::ErrorEvent>(
         [this](const uvw::ErrorEvent& errorEvent, auto&) {
@@ -96,8 +97,17 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
     handle->write(buffer.Data(), buffer.Size());
   }
 
+  // ConsumeFromMetadata for the broker id
+  void ConsumeFromMetadata(ahiv::kafka::protocol::packet::BrokerNodeInformation brokerNodeInformation) {
+      if (this->connectionConfig->address->hostname == brokerNodeInformation.host &&
+      this->connectionConfig->address->port == std::to_string(brokerNodeInformation.port)) {
+          this->brokerId = brokerNodeInformation.nodeId;
+      }
+  }
+
  private:
   int32_t brokerId;
+  std::shared_ptr<ConnectionConfig> connectionConfig;
   std::shared_ptr<uvw::TCPHandle> handle;
   std::queue<ResponseCorrelationCallback> responseCallbacks;
   std::atomic<int32_t> idCounter;

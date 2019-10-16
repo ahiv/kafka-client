@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 
 #include "ahiv/kafka/event.h"
 #include "uvw.hpp"

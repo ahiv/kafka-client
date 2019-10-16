@@ -58,8 +58,7 @@ class Buffer {
   }
 
   bool ReadBoolean() {
-    return this->internalBuffer[this->readPositionInBuffer++] == 1 ? true
-                                                                   : false;
+    return this->internalBuffer[this->readPositionInBuffer++] == 1;
   }
 
   std::size_t WriteString(const std::string& value) {
@@ -69,8 +68,12 @@ class Buffer {
   }
 
   std::string ReadString() {
-    int16_t stringLength = this->Read<int16_t>();
-    std::string readStringInto("");
+    auto stringLength = this->Read<int16_t>();
+    if (stringLength == -1) {
+        return "";
+    }
+
+    std::string readStringInto;
 
     for (int positionInString = 0; positionInString < stringLength;
          positionInString++) {
@@ -97,6 +100,12 @@ class Buffer {
           data[positionInData];
     }
     return currentWritePosition;
+  }
+
+  ~Buffer() {
+      if (this->internalBuffer) {
+          this->internalBuffer.release();
+      }
   }
 
  private:
