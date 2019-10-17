@@ -14,7 +14,7 @@ class Consumer : public Connection {
  public:
   Consumer(std::shared_ptr<uvw::Loop>& loop) : Connection(loop) {
     this->Once<ConnectedEvent>([this](const ConnectedEvent& event, auto&) {
-      this->requestMetadataForTopics();
+      this->requestMetadataForTopics(this->wantedTopics, this->autoCreate);
     });
   }
 
@@ -32,39 +32,9 @@ class Consumer : public Connection {
   void AutoCreateTopics(bool value) { this->autoCreate = value; }
 
  private:
-  void requestMetadataForTopics() {
-    this->startTopicMetadata = std::chrono::high_resolution_clock::now();
-
-    ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
-        ahiv::kafka::protocol::packet::MetadataRequestPacket(
-            this->wantedTopics, this->autoCreate, false, false);
-
-    ahiv::kafka::protocol::Buffer buffer;
-    buffer.EnsureAllocated(requestPacket.Size());
-    requestPacket.Write(buffer);
-
-    this->SendToFirstConnection(buffer, [this](
-                                            protocol::Buffer& responseBuffer) {
-        ahiv::kafka::protocol::packet::MetadataResponsePacket metadataResponsePacket;
-        metadataResponsePacket.Read(responseBuffer);
-
-        for (auto broker : metadataResponsePacket.brokers) {
-            this->consumeFromMetadata(broker);
-        }
-
-      std::chrono::duration<double> elapsed =
-          std::chrono::high_resolution_clock::now() - this->startTopicMetadata;
-      std::cout << "Getting topic meta took " << elapsed.count() << " s"
-                << std::endl;
-    });
-  }
-
   std::vector<internal::Topic> topics;
   std::vector<std::string> wantedTopics;
   bool autoCreate;
-
-  std::chrono::time_point<std::chrono::high_resolution_clock>
-      startTopicMetadata;
 };
 }  // namespace ahiv::kafka
 

@@ -8,8 +8,8 @@
 #include <queue>
 
 #include "ahiv/kafka/connectionconfig.h"
-#include "ahiv/kafka/protocol/packet/metadata.h"
 #include "ahiv/kafka/protocol/buffer.h"
+#include "ahiv/kafka/protocol/packet/metadata.h"
 #include "ahiv/kafka/util.h"
 #include "uvw.hpp"
 
@@ -48,23 +48,23 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
           this->publish(ConnectedEvent{});
         });
 
-    this->handle->on<uvw::DataEvent>(
-        [this](const uvw::DataEvent& event, uvw::TCPHandle&) {
-          ahiv::kafka::protocol::Buffer buffer;
-          buffer.EnsureAllocated(event.length);
-          buffer.WriteData(event.data.get(), event.length);
-          int32_t payloadLength = buffer.Read<int32_t>();
-          int32_t correlationId = buffer.Read<int32_t>();
+    this->handle->on<uvw::DataEvent>([this](const uvw::DataEvent& event,
+                                            uvw::TCPHandle&) {
+      ahiv::kafka::protocol::Buffer buffer;
+      buffer.EnsureAllocated(event.length);
+      buffer.WriteData(event.data.get(), event.length);
+      int32_t payloadLength = buffer.Read<int32_t>();
+      int32_t correlationId = buffer.Read<int32_t>();
 
-          ResponseCorrelationCallback callback = this->responseCallbacks.front();
-          if (callback.correlationId == correlationId) {
-              this->responseCallbacks.pop();
-              buffer.ResetReadPosition();
-              callback.responseCallback(buffer);
-          } else {
-              DumpAsHex(event.data.get(), event.length);
-          }
-        });
+      ResponseCorrelationCallback callback = this->responseCallbacks.front();
+      if (callback.correlationId == correlationId) {
+        this->responseCallbacks.pop();
+        buffer.ResetReadPosition();
+        callback.responseCallback(buffer);
+      } else {
+        DumpAsHex(event.data.get(), event.length);
+      }
+    });
 
     this->handle->connect(*connectionConfig->address->resolvedAddress);
   }
@@ -98,11 +98,17 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   }
 
   // ConsumeFromMetadata for the broker id
-  void ConsumeFromMetadata(ahiv::kafka::protocol::packet::BrokerNodeInformation brokerNodeInformation) {
-      if (this->connectionConfig->address->hostname == brokerNodeInformation.host &&
-      this->connectionConfig->address->port == std::to_string(brokerNodeInformation.port)) {
-          this->brokerId = brokerNodeInformation.nodeId;
-      }
+  bool ConsumeFromMetadata(ahiv::kafka::protocol::packet::BrokerNodeInformation
+                               brokerNodeInformation) {
+    if (this->connectionConfig->address->hostname ==
+            brokerNodeInformation.host &&
+        this->connectionConfig->address->port ==
+            std::to_string(brokerNodeInformation.port)) {
+      this->brokerId = brokerNodeInformation.nodeId;
+      return true;
+    }
+
+    return false;
   }
 
  private:

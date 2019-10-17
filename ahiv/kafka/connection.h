@@ -7,6 +7,7 @@
 #include <chrono>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -32,13 +33,6 @@ class Connection : public uvw::Emitter<Connection> {
   // callback will be fired once. You can use the connection for further
   // configuration after that callback has been fired.
   void Bootstrap(const std::set<std::string>& bootstrapServers) {
-    this->startBootstrapping = std::chrono::high_resolution_clock::now();
-    this->Once<ConnectedEvent>([this](const ConnectedEvent& event, auto&) {
-      std::chrono::duration<double> elapsed =
-          std::chrono::high_resolution_clock::now() - this->startBootstrapping;
-      std::cout << "Bootstrapping took " << elapsed.count() << " s" << std::endl;
-    });
-
     if (!this->canAtLeasOneBeUsedForConnecting(bootstrapServers)) {
       this->publish(ErrorEvent{
           .reason = "No valid server for bootstrapping has been found",
@@ -69,19 +63,56 @@ class Connection : public uvw::Emitter<Connection> {
   Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {}
 
   // Send the given buffer to the first connection, if there is one
-  void SendToFirstConnection(protocol::Buffer& buffer, const std::function<void(protocol::Buffer&)> responseCallback) {
+  void SendToFirstConnection(
+      protocol::Buffer& buffer,
+      const std::function<void(protocol::Buffer&)> responseCallback) {
     if (this->tcpHandles.size() > 0) {
       this->tcpHandles[0]->Write(buffer, responseCallback);
     }
   }
 
-  void consumeFromMetadata(const protocol::packet::BrokerNodeInformation brokerNodeInformation) {
-      for (auto tcpConnection : this->tcpHandles) {
-          tcpConnection->ConsumeFromMetadata(brokerNodeInformation);
-      }
+  void requestMetadataForTopics(std::vector<std::string>& wantedTopics,
+                                bool autoCreate) {
+    ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
+        ahiv::kafka::protocol::packet::MetadataRequestPacket(
+            wantedTopics, autoCreate, false, false);
+
+    ahiv::kafka::protocol::Buffer buffer;
+    buffer.EnsureAllocated(requestPacket.Size());
+    requestPacket.Write(buffer);
+    this->sendAndConsumeMetadataResponse(buffer);
   }
 
  private:
+  void sendAndConsumeMetadataResponse(protocol::Buffer& buffer) {
+    this->SendToFirstConnection(
+        buffer, [this](protocol::Buffer& responseBuffer) {
+          ahiv::kafka::protocol::packet::MetadataResponsePacket
+              metadataResponsePacket;
+          metadataResponsePacket.Read(responseBuffer);
+
+          for (auto broker : metadataResponsePacket.brokers) {
+            this->consumeFromMetadata(broker);
+          }
+
+          for (auto topic : metadataResponsePacket.topicInformation) {
+            for (auto partition : topic.partitionInformation) {
+                std::cout << "Partition index: " << partition.partitionIndex << "; Leader Node ID: " << partition.leaderId << std::endl << std::flush;
+            }
+          }
+        });
+  }
+
+  void consumeFromMetadata(
+      const protocol::packet::BrokerNodeInformation brokerNodeInformation) {
+    for (auto tcpConnection : this->tcpHandles) {
+      if (tcpConnection->ConsumeFromMetadata(brokerNodeInformation)) {
+        this->tcpHandleByNodeId.insert(
+            std::make_pair(brokerNodeInformation.nodeId, tcpConnection));
+      }
+    }
+  }
+
   // connectToServerViaTCP takes in the resolved connection config and connects
   // a TCP socket to the resolved IP:Port
   void connectToServerViaTCP(
@@ -137,10 +168,8 @@ class Connection : public uvw::Emitter<Connection> {
   }
 
   std::vector<std::shared_ptr<internal::TCPConnection>> tcpHandles;
+  std::map<int32_t, std::shared_ptr<internal::TCPConnection>> tcpHandleByNodeId;
   std::shared_ptr<uvw::Loop>& loop;
-
-  std::chrono::time_point<std::chrono::high_resolution_clock>
-      startBootstrapping;
 };
 }  // namespace ahiv::kafka
 
