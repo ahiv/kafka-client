@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_CONSUMER_H
-#define AHIV_KAFKA_CLIENT_CONSUMER_H
+#ifndef AHIV_KAFKA_CONSUMER_H
+#define AHIV_KAFKA_CONSUMER_H
 
 #include "ahiv/kafka/connection.h"
 #include "ahiv/kafka/internal/topic.h"
@@ -15,6 +15,10 @@ class Consumer : public Connection {
   Consumer(std::shared_ptr<uvw::Loop>& loop) : Connection(loop) {
     this->Once<ConnectedEvent>([this](const ConnectedEvent& event, auto&) {
       this->requestMetadataForTopics(this->wantedTopics, this->autoCreate);
+    });
+
+    this->On<UpdateTopicInformationEvent>([this](const UpdateTopicInformationEvent& event, auto&) {
+
     });
   }
 
@@ -38,4 +42,4 @@ class Consumer : public Connection {
 };
 }  // namespace ahiv::kafka
 
-#endif  // AHIV_KAFKA_CLIENT_CONSUMER_H
+#endif  // AHIV_KAFKA_CONSUMER_H

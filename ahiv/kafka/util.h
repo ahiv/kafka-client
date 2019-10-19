@@ -1,9 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_UTIL_H
-#define AHIV_KAFKA_CLIENT_UTIL_H
-
+#ifndef AHIV_KAFKA_UTIL_H
+#define AHIV_KAFKA_UTIL_H
 
 namespace ahiv::kafka {
     static void DumpAsHex(const char* data, std::size_t length) {
@@ -14,4 +13,4 @@ namespace ahiv::kafka {
 }
 
 
-#endif //AHIV_KAFKA_CLIENT_UTIL_H
+#endif //AHIV_KAFKA_UTIL_H

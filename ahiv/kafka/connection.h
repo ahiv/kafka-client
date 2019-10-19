@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_CONNECTION_H
-#define AHIV_KAFKA_CLIENT_CONNECTION_H
+#ifndef AHIV_KAFKA_CONNECTION_H
+#define AHIV_KAFKA_CONNECTION_H
 
 #include <chrono>
 #include <functional>
@@ -15,6 +15,7 @@
 #include "ahiv/kafka/connectionconfig.h"
 #include "ahiv/kafka/error.h"
 #include "ahiv/kafka/event.h"
+#include "ahiv/kafka/internal/errorcodes.h"
 #include "ahiv/kafka/internal/tcpconnection.h"
 #include "uvw.hpp"
 
@@ -73,6 +74,11 @@ class Connection : public uvw::Emitter<Connection> {
 
   void requestMetadataForTopics(std::vector<std::string>& wantedTopics,
                                 bool autoCreate) {
+    this->requestMetadataForTopicsWithRetry(wantedTopics, autoCreate, 0);
+  }
+
+ private:
+  void requestMetadataForTopicsWithRetry(std::vector<std::string>& wantedTopics, bool autoCreate, int8_t retries) {
     ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
         ahiv::kafka::protocol::packet::MetadataRequestPacket(
             wantedTopics, autoCreate, false, false);
@@ -80,37 +86,57 @@ class Connection : public uvw::Emitter<Connection> {
     ahiv::kafka::protocol::Buffer buffer;
     buffer.EnsureAllocated(requestPacket.Size());
     requestPacket.Write(buffer);
-    this->sendAndConsumeMetadataResponse(buffer);
+
+    this->SendToFirstConnection(buffer, [this, &buffer, &retries, &wantedTopics, autoCreate](
+        protocol::Buffer& responseBuffer) {
+      ahiv::kafka::protocol::packet::MetadataResponsePacket
+          metadataResponsePacket;
+      metadataResponsePacket.Read(responseBuffer);
+
+      for (const auto& broker : metadataResponsePacket.brokers) {
+        auto tcpConnection = this->consumeFromMetadata(broker);
+        if (tcpConnection != nullptr) {
+          this->connectionInfoByNodeId.insert(
+              std::make_pair(broker.nodeId, tcpConnection->connectionConfig));
+        }
+      }
+
+      bool retrying = false;
+      for (const auto& topic : metadataResponsePacket.topicInformation) {
+        if (topic.errorCode != 0) {
+          if (internal::IsErrorCodeRetryable(
+              (internal::ErrorCode)topic.errorCode) &&
+              !retrying && retries < 25) {
+            retrying = true;
+            auto retryTimerHandle = this->loop->resource<uvw::TimerHandle>();
+            retryTimerHandle->on<uvw::TimerEvent>(
+                [this, &wantedTopics, autoCreate, &retries](const auto&, auto& handle) {
+                  this->requestMetadataForTopicsWithRetry(wantedTopics, autoCreate, retries++);
+                });
+
+            retryTimerHandle->start(uvw::TimerHandle::Time{(retries + 1) * 100},
+                                    uvw::TimerHandle::Time{0});
+          }
+        } else {
+          this->publish(UpdateTopicInformationEvent{
+            .topicInformation: topic
+          });
+        }
+      }
+    });
   }
 
- private:
-  void sendAndConsumeMetadataResponse(protocol::Buffer& buffer) {
-    this->SendToFirstConnection(
-        buffer, [this](protocol::Buffer& responseBuffer) {
-          ahiv::kafka::protocol::packet::MetadataResponsePacket
-              metadataResponsePacket;
-          metadataResponsePacket.Read(responseBuffer);
-
-          for (auto broker : metadataResponsePacket.brokers) {
-            this->consumeFromMetadata(broker);
-          }
-
-          for (auto topic : metadataResponsePacket.topicInformation) {
-            for (auto partition : topic.partitionInformation) {
-                std::cout << "Partition index: " << partition.partitionIndex << "; Leader Node ID: " << partition.leaderId << std::endl << std::flush;
-            }
-          }
-        });
-  }
-
-  void consumeFromMetadata(
-      const protocol::packet::BrokerNodeInformation brokerNodeInformation) {
-    for (auto tcpConnection : this->tcpHandles) {
+  std::shared_ptr<internal::TCPConnection> consumeFromMetadata(
+      const protocol::packet::BrokerNodeInformation& brokerNodeInformation) {
+    for (const auto& tcpConnection : this->tcpHandles) {
       if (tcpConnection->ConsumeFromMetadata(brokerNodeInformation)) {
         this->tcpHandleByNodeId.insert(
             std::make_pair(brokerNodeInformation.nodeId, tcpConnection));
+        return tcpConnection;
       }
     }
+
+    return nullptr;
   }
 
   // connectToServerViaTCP takes in the resolved connection config and connects
@@ -169,8 +195,9 @@ class Connection : public uvw::Emitter<Connection> {
 
   std::vector<std::shared_ptr<internal::TCPConnection>> tcpHandles;
   std::map<int32_t, std::shared_ptr<internal::TCPConnection>> tcpHandleByNodeId;
+  std::map<int32_t, std::shared_ptr<ConnectionConfig>> connectionInfoByNodeId;
   std::shared_ptr<uvw::Loop>& loop;
 };
 }  // namespace ahiv::kafka
 
-#endif  // AHIV_KAFKA_CLIENT_CONNECTION_H
+#endif  // AHIV_KAFKA_CONNECTION_H

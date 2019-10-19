@@ -1,12 +1,13 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_EVENT_H
-#define AHIV_KAFKA_CLIENT_EVENT_H
+#ifndef AHIV_KAFKA_EVENT_H
+#define AHIV_KAFKA_EVENT_H
 
 #include <string>
 
 #include "ahiv/kafka/error.h"
+#include "ahiv/kafka/protocol/packet/metadata.h"
 
 namespace ahiv::kafka {
 // ErrorEvent is fired when some component has ran into an issue. The reason is
@@ -22,6 +23,12 @@ struct ErrorEvent {
 struct ResolvedEvent {};
 
 struct ConnectedEvent {};
+
+// UpdateTopicInformationEvent is fired when metadata changes have been detected
+// for a topic. The updated metadata is part of this event
+struct UpdateTopicInformationEvent {
+  const protocol::packet::TopicInformation& topicInformation;
+};
 }  // namespace ahiv::kafka
 
-#endif  // AHIV_KAFKA_CLIENT_EVENT_H
+#endif  // AHIV_KAFKA_EVENT_H

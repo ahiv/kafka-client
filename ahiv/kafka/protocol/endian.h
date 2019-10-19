@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_PROTOOCOL_CLIENT_ENDIAN_H
-#define AHIV_KAFKA_PROTOOCOL_CLIENT_ENDIAN_H
+#ifndef AHIV_KAFKA_PROTOOCOL_ENDIAN_H
+#define AHIV_KAFKA_PROTOOCOL_ENDIAN_H
 
     #if (defined(_WIN16) || defined(_WIN32) || defined(_WIN64)) && \
         !defined(__WINDOWS__)

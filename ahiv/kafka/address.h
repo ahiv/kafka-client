@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_ADDRESS_H
-#define AHIV_KAFKA_CLIENT_ADDRESS_H
+#ifndef AHIV_KAFKA_ADDRESS_H
+#define AHIV_KAFKA_ADDRESS_H
 
 #include <memory>
 #include <string>
@@ -41,4 +41,4 @@ class Address : public uvw::Emitter<Address> {
 };
 }  // namespace ahiv::kafka
 
-#endif  // AHIV_KAFKA_CLIENT_ADDRESS_H
+#endif  // AHIV_KAFKA_ADDRESS_H

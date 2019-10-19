@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_CLIENT_TCPCONNECTION_H
-#define AHIV_KAFKA_CLIENT_TCPCONNECTION_H
+#ifndef AHIV_KAFKA_INTERNAL_TCPCONNECTION_H
+#define AHIV_KAFKA_INTERNAL_TCPCONNECTION_H
 
 #include <atomic>
 #include <queue>
@@ -111,13 +111,14 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
     return false;
   }
 
+  std::shared_ptr<ConnectionConfig> connectionConfig;
+
  private:
   int32_t brokerId;
-  std::shared_ptr<ConnectionConfig> connectionConfig;
   std::shared_ptr<uvw::TCPHandle> handle;
   std::queue<ResponseCorrelationCallback> responseCallbacks;
   std::atomic<int32_t> idCounter;
-};  // namespace ahiv::kafka::internal
+};
 }  // namespace ahiv::kafka::internal
 
-#endif  // AHIV_KAFKA_CLIENT_TCPCONNECTION_H
+#endif  // AHIV_KAFKA_INTERNAL_TCPCONNECTION_H
