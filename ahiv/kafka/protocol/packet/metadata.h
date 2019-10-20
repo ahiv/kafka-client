@@ -169,6 +169,11 @@ struct MetadataResponsePacket : public ResponsePacket {
   std::vector<TopicInformation> topicInformation;
   int32_t clusterAuthorizedOperations;
 };
+
+struct MetadataPacket {
+  using Request = MetadataRequestPacket;
+  using Response = MetadataResponsePacket;
+};
 }  // namespace ahiv::kafka::protocol::packet
 
 #endif  // AHIV_KAFKA_PROTOCOL_PACKET_METADATA_H

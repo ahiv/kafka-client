@@ -6,7 +6,7 @@
 
 namespace ahiv::kafka {
 template<class Value>
-using ResponseCallback = std::function<void (Value)>;
+using ResponseCallback = std::function<void (Value&)>;
 
 static void DumpAsHex(const char* data, std::size_t length) {
   std::cout << length << std::endl << std::flush;

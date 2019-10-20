@@ -16,7 +16,7 @@
 namespace ahiv::kafka::internal {
 struct ResponseCorrelationCallback {
   int32_t correlationId;
-  const ahiv::kafka::ResponseCallback responseCallback;
+  const ahiv::kafka::ResponseCallback<protocol::Buffer> responseCallback;
 };
 
 class TCPConnection : public uvw::Emitter<TCPConnection> {
@@ -85,17 +85,21 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   }
 
   // Write data into the stream
-  template <typename PRESP>
-  void Write(protocol::Buffer& buffer,
-             const ahiv::kafka::ResponseCallback<PRESP> responseCallback) {
-    int32_t correlationId = this->idCounter.fetch_add(1);
-    this->responseCallbacks.emplace(ResponseCorrelationCallback{
-      correlationId : correlationId,
-      responseCallback : responseCallback
-    });
+  template<
+      typename Message,
+      typename Request = typename Message::Request,
+      typename Response = typename Message::Response
+  >
+  void Send(Request&& request, ahiv::kafka::ResponseCallback<Response> responseCallback) {
+    ahiv::kafka::protocol::Buffer buffer;
+    buffer.EnsureAllocated(requestPacket.Size());
+    request.Write(buffer);
 
-    buffer.Overwrite<int32_t>(8, correlationId);
-    handle->write(buffer.Data(), buffer.Size());
+    this->write(buffer, [this](protocol::Buffer& respBuffer){
+      Response responsePacket;
+      responsePacket.Read(buffer);
+      responseCallback(responsePacket);
+    });
   }
 
   // ConsumeFromMetadata for the broker id
@@ -115,6 +119,17 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   std::shared_ptr<ConnectionConfig> connectionConfig;
 
  private:
+  void write(protocol::Buffer& buffer, const ahiv::kafka::ResponseCallback<protocol::Buffer> responseCallback) {
+    int32_t correlationId = this->idCounter.fetch_add(1);
+    this->responseCallbacks.emplace(ResponseCorrelationCallback{
+        correlationId : correlationId,
+        responseCallback : responseCallback
+    });
+
+    buffer.Overwrite<int32_t>(8, correlationId);
+    handle->write(buffer.Data(), buffer.Size());
+  }
+
   int32_t brokerId;
   std::shared_ptr<uvw::TCPHandle> handle;
   std::queue<ResponseCorrelationCallback> responseCallbacks;
