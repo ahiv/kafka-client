@@ -18,7 +18,7 @@ class Consumer : public Connection {
     });
 
     this->On<UpdateTopicInformationEvent>([this](const UpdateTopicInformationEvent& event, auto&) {
-
+      this->updateTopicInformation(event);
     });
   }
 
@@ -36,6 +36,11 @@ class Consumer : public Connection {
   void AutoCreateTopics(bool value) { this->autoCreate = value; }
 
  private:
+  // updateTopicInformation takes the event from the connection when it found a new or updated topic in metadata
+  void updateTopicInformation(const UpdateTopicInformationEvent& event) {
+
+  }
+
   std::vector<internal::Topic> topics;
   std::vector<std::string> wantedTopics;
   bool autoCreate;

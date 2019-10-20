@@ -17,6 +17,7 @@
 #include "ahiv/kafka/event.h"
 #include "ahiv/kafka/internal/errorcodes.h"
 #include "ahiv/kafka/internal/tcpconnection.h"
+#include "ahiv/kafka/util.h"
 #include "uvw.hpp"
 
 namespace ahiv::kafka {
@@ -64,11 +65,15 @@ class Connection : public uvw::Emitter<Connection> {
   Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {}
 
   // Send the given buffer to the first connection, if there is one
-  void SendToFirstConnection(
-      protocol::Buffer& buffer,
-      const std::function<void(protocol::Buffer&)> responseCallback) {
+  template <typename PREQ, typename PRESP, typename... Args>
+  void SendToFirstConnection(const ResponseCallback <PRESP> responseCallback,
+                             Args... args) {
     if (this->tcpHandles.size() > 0) {
-      this->tcpHandles[0]->Write(buffer, responseCallback);
+      PREQ packet(args...);
+      ahiv::kafka::protocol::Buffer buffer;
+      buffer.EnsureAllocated(packet.Size());
+      packet.Write(buffer);
+      this->tcpHandles[0]->Write<PRESP>(buffer, responseCallback);
     }
   }
 
@@ -78,8 +83,15 @@ class Connection : public uvw::Emitter<Connection> {
   }
 
  private:
-  void requestMetadataForTopicsWithRetry(std::vector<std::string>& wantedTopics, bool autoCreate, int8_t retries) {
-    ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
+  void requestMetadataForTopicsWithRetry(std::vector<std::string>& wantedTopics,
+                                         bool autoCreate, int8_t retries) {
+    this->SendToFirstConnection<protocol::packet::MetadataRequestPacket,
+                                protocol::packet::MetadataResponsePacket>(
+        [](protocol::packet::MetadataResponsePacket& response) {
+
+        },
+        wantedTopics, autoCreate, false, false);
+    /*ahiv::kafka::protocol::packet::MetadataRequestPacket requestPacket =
         ahiv::kafka::protocol::packet::MetadataRequestPacket(
             wantedTopics, autoCreate, false, false);
 
@@ -87,8 +99,9 @@ class Connection : public uvw::Emitter<Connection> {
     buffer.EnsureAllocated(requestPacket.Size());
     requestPacket.Write(buffer);
 
-    this->SendToFirstConnection(buffer, [this, &buffer, &retries, &wantedTopics, autoCreate](
-        protocol::Buffer& responseBuffer) {
+    this->SendToFirstConnection(buffer, [this, &buffer, &retries, &wantedTopics,
+                                         autoCreate](
+                                            protocol::Buffer& responseBuffer) {
       ahiv::kafka::protocol::packet::MetadataResponsePacket
           metadataResponsePacket;
       metadataResponsePacket.Read(responseBuffer);
@@ -105,27 +118,32 @@ class Connection : public uvw::Emitter<Connection> {
       for (const auto& topic : metadataResponsePacket.topicInformation) {
         if (topic.errorCode != 0) {
           if (internal::IsErrorCodeRetryable(
-              (internal::ErrorCode)topic.errorCode) &&
+                  (internal::ErrorCode)topic.errorCode) &&
               !retrying && retries < 25) {
             retrying = true;
             auto retryTimerHandle = this->loop->resource<uvw::TimerHandle>();
             retryTimerHandle->on<uvw::TimerEvent>(
-                [this, &wantedTopics, autoCreate, &retries](const auto&, auto& handle) {
-                  this->requestMetadataForTopicsWithRetry(wantedTopics, autoCreate, retries++);
+                [this, &wantedTopics, autoCreate, &retries](const auto&,
+                                                            auto& handle) {
+                  this->requestMetadataForTopicsWithRetry(
+                      wantedTopics, autoCreate, retries++);
                 });
 
             retryTimerHandle->start(uvw::TimerHandle::Time{(retries + 1) * 100},
                                     uvw::TimerHandle::Time{0});
+            std::cout << "Retrying with " << (retries + 1) * 100 << " ms delay"
+                      << std::endl
+                      << std::flush;
           }
         } else {
-          this->publish(UpdateTopicInformationEvent{
-            .topicInformation: topic
-          });
+          this->publish(UpdateTopicInformationEvent{.topicInformation = topic});
         }
       }
-    });
+    });*/
   }
 
+  // consumeFromMetadata tells the tcp connections to grab their broker id if
+  // they don't know them yet and stores the broker id in a map for lookup
   std::shared_ptr<internal::TCPConnection> consumeFromMetadata(
       const protocol::packet::BrokerNodeInformation& brokerNodeInformation) {
     for (const auto& tcpConnection : this->tcpHandles) {
@@ -197,6 +215,8 @@ class Connection : public uvw::Emitter<Connection> {
   std::map<int32_t, std::shared_ptr<internal::TCPConnection>> tcpHandleByNodeId;
   std::map<int32_t, std::shared_ptr<ConnectionConfig>> connectionInfoByNodeId;
   std::shared_ptr<uvw::Loop>& loop;
+  std::vector<std::string> wantedTopics;
+  bool autoCreate;
 };
 }  // namespace ahiv::kafka
 

@@ -16,7 +16,7 @@
 namespace ahiv::kafka::internal {
 struct ResponseCorrelationCallback {
   int32_t correlationId;
-  const std::function<void(protocol::Buffer&)> responseCallback;
+  const ahiv::kafka::ResponseCallback responseCallback;
 };
 
 class TCPConnection : public uvw::Emitter<TCPConnection> {
@@ -85,8 +85,9 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   }
 
   // Write data into the stream
+  template <typename PRESP>
   void Write(protocol::Buffer& buffer,
-             const std::function<void(protocol::Buffer&)> responseCallback) {
+             const ahiv::kafka::ResponseCallback<PRESP> responseCallback) {
     int32_t correlationId = this->idCounter.fetch_add(1);
     this->responseCallbacks.emplace(ResponseCorrelationCallback{
       correlationId : correlationId,
