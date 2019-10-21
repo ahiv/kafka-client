@@ -31,14 +31,14 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
           const char* errorName = errorEvent.name();
           if (strncmp(errorName, "ECONNREFUSED", 12) == 0) {
             this->publish(
-                ErrorEvent{.reason = std::string("Could not connect to IP ")
+                ErrorEvent{.Reason = std::string("Could not connect to IP ")
                                          .append(errorEvent.what()),
-                           .error = Error::TCPConnectionRefused});
+                           .Error = Error::TCPConnectionRefused});
           } else {
             this->publish(
-                ErrorEvent{.reason = std::string("Got unknown TCP error: ")
+                ErrorEvent{.Reason = std::string("Got unknown TCP error: ")
                                          .append(errorEvent.what()),
-                           .error = Error::UnknownTCPError});
+                           .Error = Error::UnknownTCPError});
           }
         });
 

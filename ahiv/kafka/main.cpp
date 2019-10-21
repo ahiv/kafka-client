@@ -9,7 +9,7 @@ int main() {
   ahiv::kafka::Consumer consumer(loop);
   consumer.On<ahiv::kafka::ErrorEvent>(
       [](const ahiv::kafka::ErrorEvent& errorEvent, auto& emitter) {
-        std::cout << errorEvent.reason << std::endl << std::flush;
+        std::cout << errorEvent.Reason << std::endl;
       });
   consumer.ConsumeFromTopic("test");
   consumer.Bootstrap({"plaintext://localhost:9092"});
