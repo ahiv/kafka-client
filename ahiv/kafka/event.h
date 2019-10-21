@@ -1,8 +1,8 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_EVENT_H
-#define AHIV_KAFKA_EVENT_H
+#ifndef AHIV_KAFKA_EVENT_H_
+#define AHIV_KAFKA_EVENT_H_
 
 #include <string>
 
@@ -10,25 +10,26 @@
 #include "ahiv/kafka/protocol/packet/metadata.h"
 
 namespace ahiv::kafka {
-// ErrorEvent is fired when some component has ran into an issue. The reason is
-// filled with a human readable and understandable error, the error property is
-// filled with a enum value from Error.
+// ErrorEvent is fired when some component has run into an issue.
 struct ErrorEvent {
-  const std::string& reason;
-  const Error& error;
+  // Reason captures the error cause in a humanly readable form.
+  std::string Reason;
+  // Error is the kind of error that occurred.
+  Error Error;
 };
 
 // ResolvedEvent is used by the Address class to notify the caller when it has
-// resolved the IP of the hostname given
+// resolved the IP of the given hostname.
 struct ResolvedEvent {};
 
 struct ConnectedEvent {};
 
 // UpdateTopicInformationEvent is fired when metadata changes have been detected
-// for a topic. The updated metadata is part of this event
+// for a topic. The updated metadata is part of this event.
 struct UpdateTopicInformationEvent {
-  const protocol::packet::TopicInformation& topicInformation;
+  protocol::packet::TopicInformation topicInformation;
 };
+
 }  // namespace ahiv::kafka
 
-#endif  // AHIV_KAFKA_EVENT_H
+#endif  // AHIV_KAFKA_EVENT_H_

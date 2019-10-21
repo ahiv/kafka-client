@@ -36,8 +36,8 @@ class Connection : public uvw::Emitter<Connection> {
   void Bootstrap(const std::set<std::string>& bootstrapServers) {
     if (!this->canAtLeasOneBeUsedForConnecting(bootstrapServers)) {
       this->publish(ErrorEvent{
-          .reason = "No valid server for bootstrapping has been found",
-          .error = Error::NoValidBootstrapServerGiven});
+          .Reason = "No valid server for bootstrapping has been found",
+          .Error = Error::NoValidBootstrapServerGiven});
     }
 
     this->connectToServers(bootstrapServers);

@@ -22,8 +22,8 @@ class Address : public uvw::Emitter<Address> {
     request->on<uvw::ErrorEvent>(
         [this](const uvw::ErrorEvent& errorEvent, auto&) {
           this->publish(ErrorEvent{
-              .reason = std::string("Could not resolve IP").append(errorEvent.what()),
-              .error = Error::DNSResolveFailed});
+              .Reason = std::string("Could not resolve IP").append(errorEvent.what()),
+              .Error = Error::DNSResolveFailed});
         });
 
     request->on<uvw::AddrInfoEvent>(
