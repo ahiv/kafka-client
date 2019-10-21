@@ -1,16 +1,25 @@
 // Copyright 2019 Ahiv Authors. All rights reserved. Use of this source  code
 // is governed by a MIT-style license that can be found in the LICENSE file.
 
-#ifndef AHIV_KAFKA_UTIL_H
-#define AHIV_KAFKA_UTIL_H
+#ifndef AHIV_KAFKA_UTIL_H_
+#define AHIV_KAFKA_UTIL_H_
 
 namespace ahiv::kafka {
-    static void DumpAsHex(const char* data, std::size_t length) {
-        std::cout << length << std::endl << std::flush;
-        for (int j = 0; j < length; j++) printf("%02X ", data[j]);
-        std::cout << std::flush;
-    }
+
+// DumpAsHex prints the input to stdout as a hex string.
+static void DumpAsHex(const char* input, std::size_t length) {
+  DumpAsHex(input, length, output);
 }
 
+// DumpAsHex prints the input to the given output stream as a hex string.
+static void DumpAsHex(const char* input, std::size_t length, std::ostream output) {
+  output << length << '\n\';
+  for (int index = 0; index < length; index++) {
+    fprintf(output, "%02X ", input[index]);
+  }
+  output << std::flush;
+}
 
-#endif //AHIV_KAFKA_UTIL_H
+}
+
+#endif // AHIV_KAFKA_UTIL_H_
