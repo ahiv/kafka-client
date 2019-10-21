@@ -21,7 +21,7 @@ struct MetadataRequestPacket : public RequestPacket {
         includeClusterAuthorizedOperations(includeClusterAuthorizedOperations),
         includeTopicAuthorizedOperations(includeTopicAuthorizedOperations) {}
 
-  void Write(Buffer& buffer) {
+  void Write(Buffer& buffer) override {
     RequestPacket::Write(buffer);
 
     // Write topics
@@ -40,7 +40,7 @@ struct MetadataRequestPacket : public RequestPacket {
     buffer.Overwrite<int32_t>(packetSizePosition, packetSize);
   }
 
-  std::size_t Size() {
+  std::size_t Size() override {
     std::size_t packetSize = RequestPacket::Size() + 4 + 3;
 
     for (auto& topicName : topics) {
@@ -57,9 +57,9 @@ struct MetadataRequestPacket : public RequestPacket {
 };
 
 struct BrokerNodeInformation {
-  int32_t nodeId;
+  int32_t nodeId{};
   std::string host;
-  int32_t port;
+  int32_t port{};
   std::string rack;
 
   void Read(Buffer& buffer) {
@@ -77,20 +77,20 @@ struct PartitionInformation {
     leaderId = buffer.Read<int32_t>();
     leaderEpoch = buffer.Read<int32_t>();
 
-    int32_t amountOfReplicas = buffer.Read<int32_t>();
+    auto amountOfReplicas = buffer.Read<int32_t>();
     replicas.reserve(amountOfReplicas);
     for (std::size_t currentReplica = 0; currentReplica < amountOfReplicas;
          currentReplica++) {
       replicas.emplace_back(buffer.Read<int32_t>());
     }
 
-    int32_t amountOfIsr = buffer.Read<int32_t>();
+    auto amountOfIsr = buffer.Read<int32_t>();
     isr.reserve(amountOfIsr);
     for (std::size_t currentISR = 0; currentISR < amountOfIsr; currentISR++) {
       isr.emplace_back(buffer.Read<int32_t>());
     }
 
-    int32_t amountOfOfflineReplicas = buffer.Read<int32_t>();
+    auto amountOfOfflineReplicas = buffer.Read<int32_t>();
     offlineReplicas.reserve(amountOfOfflineReplicas);
     for (std::size_t currentOfflineReplica = 0;
          currentOfflineReplica < amountOfOfflineReplicas;
@@ -99,10 +99,10 @@ struct PartitionInformation {
     }
   }
 
-  int16_t errorCode;
-  int32_t partitionIndex;
-  int32_t leaderId;
-  int32_t leaderEpoch;
+  int16_t errorCode{};
+  int32_t partitionIndex{};
+  int32_t leaderId{};
+  int32_t leaderEpoch{};
   std::vector<int32_t> replicas;
   std::vector<int32_t> isr;
   std::vector<int32_t> offlineReplicas;
@@ -114,7 +114,7 @@ struct TopicInformation {
     name = buffer.ReadString();
     isInternal = buffer.ReadBoolean();
 
-    int32_t amountOfPartitions = buffer.Read<int32_t>();
+    auto amountOfPartitions = buffer.Read<int32_t>();
     partitionInformation.reserve(amountOfPartitions);
     for (std::size_t currentPartition = 0;
          currentPartition < amountOfPartitions; currentPartition++) {
@@ -126,15 +126,15 @@ struct TopicInformation {
     topicAuthorizedOperations = buffer.Read<int32_t>();
   }
 
-  int16_t errorCode;
+  int16_t errorCode{};
   std::string name;
-  bool isInternal;
+  bool isInternal{};
   std::vector<PartitionInformation> partitionInformation;
-  int32_t topicAuthorizedOperations;
+  int32_t topicAuthorizedOperations{};
 };
 
 struct MetadataResponsePacket : public ResponsePacket {
-  void Read(Buffer& buffer) {
+  void Read(Buffer& buffer) override {
     ResponsePacket::Read(buffer);
 
     throttledInMilliseconds = buffer.Read<int32_t>();
@@ -150,7 +150,7 @@ struct MetadataResponsePacket : public ResponsePacket {
     clusterId = buffer.ReadString();
     controllerId = buffer.Read<int32_t>();
 
-    int32_t amountOfTopics = buffer.Read<int32_t>();
+    auto amountOfTopics = buffer.Read<int32_t>();
     topicInformation.reserve(amountOfTopics);
     for (std::size_t currentTopic = 0; currentTopic < amountOfTopics;
          currentTopic++) {
