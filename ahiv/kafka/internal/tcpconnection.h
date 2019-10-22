@@ -84,22 +84,22 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
     this->once<E>(listener);
   }
 
-  // Write data into the stream
-  template<
-      typename Message,
-      typename Request = typename Message::Request,
-      typename Response = typename Message::Response
-  >
-  void Send(Request&& request, ahiv::kafka::ResponseCallback<Response> responseCallback) {
-    ahiv::kafka::protocol::Buffer buffer;
-    buffer.EnsureAllocated(requestPacket.Size());
-    request.Write(buffer);
+  // Send will serialize a packet, transmit it over TCP and deserialize its
+  // response packet and call the given callback
+  template <typename Message>
+  void Send(typename Message::Request& request,
+            ahiv::kafka::ResponseCallback<typename Message::Response>
+                responseCallback) {
+    ahiv::kafka::protocol::Buffer requestBuffer;
+    requestBuffer.EnsureAllocated(request.Size());
+    request.Write(requestBuffer);
 
-    this->write(buffer, [this](protocol::Buffer& respBuffer){
-      Response responsePacket;
-      responsePacket.Read(buffer);
-      responseCallback(responsePacket);
-    });
+    this->write(requestBuffer,
+                [this, &responseCallback](protocol::Buffer& respBuffer) {
+                  typename Message::Response responsePacket;
+                  responsePacket.Read(respBuffer);
+                  responseCallback(responsePacket);
+                });
   }
 
   // ConsumeFromMetadata for the broker id
@@ -122,8 +122,8 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   void write(protocol::Buffer& buffer, const ahiv::kafka::ResponseCallback<protocol::Buffer>& responseCallback) {
     int32_t correlationId = this->idCounter.fetch_add(1);
     this->responseCallbacks.emplace(ResponseCorrelationCallback{
-        correlationId : correlationId,
-        responseCallback : responseCallback
+      correlationId : correlationId,
+      responseCallback : responseCallback
     });
 
     buffer.Overwrite<int32_t>(8, correlationId);

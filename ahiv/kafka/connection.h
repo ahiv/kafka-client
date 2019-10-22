@@ -65,11 +65,10 @@ class Connection : public uvw::Emitter<Connection> {
   Connection(std::shared_ptr<uvw::Loop>& loop) : loop(loop) {}
 
   // Send the given buffer to the first connection, if there is one
-  template <typename Message, typename Request = typename Message::Request,
-            typename Response = typename Message::Response>
+  template <typename Message>
   void SendToFirstConnection(
-      Request&& request,
-      ahiv::kafka::ResponseCallback<Response> responseCallback) {
+      typename Message::Request&& request,
+      ahiv::kafka::ResponseCallback<typename Message::Response> responseCallback) {
     if (this->tcpHandles.size() > 0) {
       this->tcpHandles[0]->Send<Message>(request, responseCallback);
     }
@@ -83,13 +82,11 @@ class Connection : public uvw::Emitter<Connection> {
  private:
   void requestMetadataForTopicsWithRetry(std::vector<std::string>& wantedTopics,
                                          bool autoCreate, int8_t retries) {
-    protocol::packet::MetadataRequestPacket requestPacket =
-        protocol::packet::MetadataRequestPacket(wantedTopics, autoCreate, false,
-                                                false);
-
     this->SendToFirstConnection<protocol::packet::MetadataPacket>(
-        requestPacket, [this, &wantedTopics, &retries, autoCreate](
-                           protocol::packet::MetadataResponsePacket& response) {
+        protocol::packet::MetadataRequestPacket(wantedTopics, autoCreate, false,
+                                                false),
+        [this, &wantedTopics, &retries,
+         autoCreate](protocol::packet::MetadataResponsePacket& response) {
           for (const auto& broker : response.brokers) {
             auto tcpConnection = this->consumeFromMetadata(broker);
             if (tcpConnection != nullptr) {
