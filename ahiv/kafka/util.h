@@ -4,11 +4,13 @@
 #ifndef AHIV_KAFKA_UTIL_H_
 #define AHIV_KAFKA_UTIL_H_
 
+#include <iostream>
+
 namespace ahiv::kafka {
 
 // DumpAsHex prints the input to stdout as a hex string.
 static void DumpAsHex(const char* input, std::size_t length) {
-  DumpAsHex(input, length, output);
+  DumpAsHex(input, length, std::cout);
 }
 
 // DumpAsHex prints the input to the given output stream as a hex string.
@@ -20,6 +22,6 @@ static void DumpAsHex(const char* input, std::size_t length, std::ostream output
   output << std::flush;
 }
 
-}
+} // namespace ahiv::kafka
 
 #endif // AHIV_KAFKA_UTIL_H_
