@@ -8,8 +8,8 @@
 
 namespace ahiv::kafka::protocol::packet {
     struct BasePacket {
-        std::size_t packetSizePosition;
-        int32_t packetSize;
+        std::size_t packetSizePosition{};
+        int32_t packetSize{};
 
         virtual void Write(Buffer& buffer) {
             packetSizePosition = buffer.Write<int32_t>(0);
@@ -26,7 +26,7 @@ namespace ahiv::kafka::protocol::packet {
         RequestPacket(int16_t apiKey, int16_t apiVersion)
                 : apiKey(apiKey), apiVersion(apiVersion) {}
 
-        void Write(Buffer& buffer) {
+        void Write(Buffer& buffer) override {
             BasePacket::Write(buffer);
 
             //
@@ -40,15 +40,15 @@ namespace ahiv::kafka::protocol::packet {
 
         int16_t apiKey;
         int16_t apiVersion;
-        int32_t correlationId;
+        int32_t correlationId{};
         int16_t clientId =
                 -1;  // TODO: Currently "nulled" because we don't support client ids
     };
 
     struct ResponsePacket : public BasePacket {
-        int32_t correlationId;
+        int32_t correlationId{};
 
-        void Read(Buffer& buffer) {
+        void Read(Buffer& buffer) override {
             BasePacket::Read(buffer);
             correlationId = buffer.Read<int32_t>();
         }

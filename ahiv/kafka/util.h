@@ -7,6 +7,8 @@
 #include <iostream>
 
 namespace ahiv::kafka {
+template<class Value>
+using ResponseCallback = std::function<void (Value&)>;
 
 // DumpAsHex prints the input to stdout as a hex string.
 static void DumpAsHex(const char* input, std::size_t length) {

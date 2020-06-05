@@ -16,7 +16,7 @@
 namespace ahiv::kafka::internal {
 struct ResponseCorrelationCallback {
   int32_t correlationId;
-  const std::function<void(protocol::Buffer&)> responseCallback;
+  const ahiv::kafka::ResponseCallback<protocol::Buffer> responseCallback;
 };
 
 class TCPConnection : public uvw::Emitter<TCPConnection> {
@@ -29,7 +29,7 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
     this->handle->on<uvw::ErrorEvent>(
         [this](const uvw::ErrorEvent& errorEvent, auto&) {
           const char* errorName = errorEvent.name();
-          if (errorName == "ECONNREFUSED") {
+          if (strncmp(errorName, "ECONNREFUSED", 12) == 0) {
             this->publish(
                 ErrorEvent{.Reason = std::string("Could not connect to IP ")
                                          .append(errorEvent.what()),
@@ -43,8 +43,8 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
         });
 
     this->handle->once<uvw::ConnectEvent>(
-        [this](const uvw::ConnectEvent&, uvw::TCPHandle& handle) {
-          handle.read();
+        [this](const uvw::ConnectEvent&, uvw::TCPHandle& newTcpHandle) {
+          newTcpHandle.read();
           this->publish(ConnectedEvent{});
         });
 
@@ -84,21 +84,26 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
     this->once<E>(listener);
   }
 
-  // Write data into the stream
-  void Write(protocol::Buffer& buffer,
-             const std::function<void(protocol::Buffer&)> responseCallback) {
-    int32_t correlationId = this->idCounter.fetch_add(1);
-    this->responseCallbacks.emplace(ResponseCorrelationCallback{
-      correlationId : correlationId,
-      responseCallback : responseCallback
-    });
+  // Send will serialize a packet, transmit it over TCP and deserialize its
+  // response packet and call the given callback
+  template <typename Message>
+  void Send(typename Message::Request& request,
+            ahiv::kafka::ResponseCallback<typename Message::Response>
+                responseCallback) {
+    ahiv::kafka::protocol::Buffer requestBuffer;
+    requestBuffer.EnsureAllocated(request.Size());
+    request.Write(requestBuffer);
 
-    buffer.Overwrite<int32_t>(8, correlationId);
-    handle->write(buffer.Data(), buffer.Size());
+    this->write(requestBuffer,
+                [this, &responseCallback](protocol::Buffer& respBuffer) {
+                  typename Message::Response responsePacket;
+                  responsePacket.Read(respBuffer);
+                  responseCallback(responsePacket);
+                });
   }
 
   // ConsumeFromMetadata for the broker id
-  bool ConsumeFromMetadata(ahiv::kafka::protocol::packet::BrokerNodeInformation
+  bool ConsumeFromMetadata(const ahiv::kafka::protocol::packet::BrokerNodeInformation&
                                brokerNodeInformation) {
     if (this->connectionConfig->address->hostname ==
             brokerNodeInformation.host &&
@@ -114,6 +119,17 @@ class TCPConnection : public uvw::Emitter<TCPConnection> {
   std::shared_ptr<ConnectionConfig> connectionConfig;
 
  private:
+  void write(protocol::Buffer& buffer, const ahiv::kafka::ResponseCallback<protocol::Buffer>& responseCallback) {
+    int32_t correlationId = this->idCounter.fetch_add(1);
+    this->responseCallbacks.emplace(ResponseCorrelationCallback{
+      correlationId : correlationId,
+      responseCallback : responseCallback
+    });
+
+    buffer.Overwrite<int32_t>(8, correlationId);
+    handle->write(buffer.Data(), buffer.Size());
+  }
+
   int32_t brokerId;
   std::shared_ptr<uvw::TCPHandle> handle;
   std::queue<ResponseCorrelationCallback> responseCallbacks;
